@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # MySQL Database Service
+  db:
+    image: mysql:8.0
+    container_name: contacts_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: contacts_db
+    volumes:
+      # Named volume for data persistence
+      - mysql_data:/var/lib/mysql
+      # Mount init.sql to initialize database
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Application Service
+  api:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: contacts_api
+    restart: always
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: rootpassword
+      DB_NAME: contacts_db
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Mount code for development (optional - remove for production)
+      - ./app:/app
+
+# Named volumes for data persistence
+volumes:
+  mysql_data:
+    driver: local
